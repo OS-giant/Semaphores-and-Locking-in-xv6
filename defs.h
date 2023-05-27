@@ -123,8 +123,14 @@ void            yield(void);
 int             proc_ps(void);
 int             make_proc_write(int);
 int             get_is_writer(int);
-int             sem_init(int, int);
-int             sem_acquire(int);
+int             proc_semaphore_init(int, int,int);
+int             proc_semaphore_acquire(int);
+int             proc_semaphore_release(int);
+int             cv_wait(void* condvar);
+void            sleep1(void *chan);
+int             cv_signal(void* condvar);
+void            reader(int i, void* condvar);
+void            writer(int i, void* condvar);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

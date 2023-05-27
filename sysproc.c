@@ -107,14 +107,15 @@ int sys_make_write(void){
 }
 
 int sys_semaphore_init(void){
-  int i , v;
-  if(argint(0, &i) < 0)
-    return -1;
-  
-  if(argint(1, &v) < 0)
-    return -1;
-
-  return sem_init(i, v);
+  int i, v, m;
+  if (argint(0, &i) < 0)
+      return 0;
+  if (argint(1, &v) < 0)
+    return 0;
+  if (argint(2, &m) < 0)
+    return 0;
+  proc_semaphore_init(i, v, m);
+  return 1;
 }
 
 int sys_semaphore_acquire(void){
@@ -122,5 +123,47 @@ int sys_semaphore_acquire(void){
   if(argint(0, &i) < 0)
     return -1;
 
-  return sem_acquire(i);
+  return proc_semaphore_acquire(i);
+}
+
+int sys_semaphore_release(void){
+  int i;
+    if (argint(0, &i) < 0)
+        return -1;
+    return proc_semaphore_release(i);
+}
+
+int sys_cv_wait(void)
+{
+  struct condvar* condvar;
+  if (argptr(0,(void*)&condvar, sizeof(condvar))<0)
+    return -1;
+  return cv_wait(condvar);
+}
+
+int sys_cv_signal(void) {
+  struct condvar* condvar;
+  if (argptr(0,(void*)&condvar, sizeof(condvar))<0)
+    return -1;
+  return cv_signal(condvar);
+}
+
+void sys_reader(void) {
+  struct condvar* condvar;
+  int i;
+  if (argint(0, &i) < 0)
+    return;
+  if (argptr(1,(void*)&condvar, sizeof(condvar))<0)
+    return;
+  reader(i, condvar);
+}
+
+void sys_writer(void) {
+  struct condvar* condvar;
+  int i;
+  if (argint(0, &i) < 0)
+    return;
+  if (argptr(1,(void*)&condvar, sizeof(condvar))<0)
+    return;
+  writer(i, condvar); 
 }

@@ -1,6 +1,8 @@
 struct stat;
 struct rtcdate;
 
+struct condvar;
+
 // system calls
 int fork(void);
 int exit(void) __attribute__((noreturn));
@@ -25,8 +27,13 @@ int sleep(int);
 int uptime(void);
 int ps(void);
 int make_write(int);
-int semaphore_init(int, int);
+int semaphore_init(int, int, int);
 int semaphore_acquire(int);
+int semaphore_release(int);
+int cv_wait(struct condvar*);
+int cv_signal(struct condvar*);
+void reader(int, struct condvar*);
+void writer(int, struct condvar*);
 
 // ulib.c
 int stat(const char*, struct stat*);

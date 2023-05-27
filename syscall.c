@@ -107,6 +107,11 @@ extern int sys_ps(void);
 extern int sys_make_write(void);
 extern int sys_semaphore_init(void);
 extern int sys_semaphore_acquire(void);
+extern int sys_semaphore_release(void);
+extern int sys_cv_wait(void);
+extern int sys_cv_signal(void);
+extern int sys_reader(void);
+extern int sys_writer(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -134,6 +139,11 @@ static int (*syscalls[])(void) = {
 [SYS_make_write]    sys_make_write,
 [SYS_semaphore_init] sys_semaphore_init,
 [SYS_semaphore_acquire] sys_semaphore_acquire,
+[SYS_semaphore_release] sys_semaphore_release,
+[SYS_cv_wait] sys_cv_wait,
+[SYS_cv_signal] sys_cv_signal,
+[SYS_reader] sys_reader,
+[SYS_writer] sys_writer,
 };
 
 void

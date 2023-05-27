@@ -1,25 +1,55 @@
 #include "types.h"
 #include "stat.h"
 #include "user.h"
+#include "spinlock.h"
+
+struct condvar
+{
+    struct spinlock lock;
+};
 
 int main(int argc, char *argv[]){
+    struct condvar condvar;
 
-    for (int i = 0 ; i < 5 ; i++){
-        int a = fork();
+    int pid = fork();
+    if (pid < 0) {
+        printf(1, "Error forking child.\n");
+    }
 
-        if (a < 0){
-            while(wait() != -1){
+    else if (pid == 0) {
+        int pid1 = fork();
+        if(pid1 == 0){
+            int pid1 = fork();
+            if(pid1 == 0){
+                writer(1,&condvar);
+            }
+            else{
+                reader(2,&condvar);
+                wait();
             }
         }
-
-        else if(a == 0) {
-            if(i%2==0)
-                make_write(getpid());
-            exec();
-            while(1) {}
+        else{
+            reader(1,&condvar);
+            wait();
         }
     }
 
-    ps();
+    else {
+        int pid1 = fork();
+
+        if(pid1 == 0) {
+            writer(0,&condvar);
+        }
+
+        else {
+
+            reader(0,&condvar);
+            wait();
+        }
+
+        wait();
+    }
+
     exit();
+    return 0;
 }

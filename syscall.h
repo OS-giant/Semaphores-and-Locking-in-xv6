@@ -24,3 +24,8 @@
 #define SYS_make_write 23
 #define SYS_semaphore_init 24
 #define SYS_semaphore_acquire 25
+#define SYS_semaphore_release 26
+#define SYS_cv_wait 27
+#define SYS_cv_signal 28
+#define SYS_reader 29
+#define SYS_writer 30

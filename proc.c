@@ -14,8 +14,14 @@ struct {
   struct proc proc[NPROC];
 } ptable;
 
+struct {
+  struct spinlock lock;
+} condvar;
+
 static struct proc *initproc;
 
+int readers = 0;
+int writers = 0;
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
@@ -591,64 +597,153 @@ int make_proc_write(int pid){
   return 10;
 }
 
-struct semaphore{
-  int value;
-  int locked;
-  int read_count;
-  int write_count;
-  struct spinlock lk;
-};
+struct {
+  struct spinlock lock;
+  struct proc* proc[NPROC];
+  int last;
+  int v;
+  int m;
+} shared_file[5];
 
-struct semaphore shared_file[3];
+//struct semaphore shared_file[3];
 
-int sem_init(int i, int v){
-  acquire(&shared_file[i].lk);
-
-  if (shared_file[i].locked == 0) {
-      shared_file[i].locked = 1;
-      shared_file[i].value = v;
-      shared_file[i].read_count = 0;
-      shared_file[i].write_count = 0;
-
-  } else {
-    release(&shared_file[i].lk);
-    return -1;
-  }  
-
-  release(&shared_file[i].lk);
-
+int proc_semaphore_init(int i, int v, int m){
+  acquire(&shared_file[i].lock);
+  shared_file[i].v = v;
+  shared_file[i].m = m;
+  shared_file[i].last = 0;
+  release(&shared_file[i].lock);
   return 0;
 }
 
-int sem_acquire(int i){
-  acquire(&shared_file[i].lk);
-
-  if(shared_file[i].write_count == 0){
-
-    if(get_is_writer(current_process_id) != 1){
-      cprintf("pid %d can read!\n", current_process_id);
-    }
-
-    else{
-      cprintf("pid %d can write!\n", current_process_id);
-    }
-
+int proc_semaphore_acquire(int i)
+{
+  acquire(&shared_file[i].lock);
+  if (shared_file[i].m < shared_file[i].v)
+  {
+    shared_file[i].m++;
   }
-
-  else {
-
-    if(get_is_writer(current_process_id) != 1){
-      cprintf("pid %d cannot read!\n", current_process_id);
-      sleep(myproc()->chan, &shared_file[i].lk);
-      //myproc()->state = "SLEEPING";
-    }
-
-    else{
-      cprintf("pid %d cannot write!\n", current_process_id);
-      sleep(myproc()->chan, &shared_file[i].lk);
-      //myproc()->state = "SLEEPING";
-    }
+  else
+  {
+    shared_file[i].proc[shared_file[i].last] = myproc();
+    shared_file[i].last++;
+    sleep(myproc(), &shared_file[i].lock);
   }
-
+  release(&shared_file[i].lock);
   return 0;
 }
+
+int proc_semaphore_release(int i){
+  acquire(&shared_file[i].lock);
+  if (shared_file[i].m < shared_file[i].v && shared_file[i].m > 0) {
+    shared_file[i].m--;
+  }
+
+  else if (shared_file[i].m == shared_file[i].v) {
+    if (shared_file[i].last == 0) {
+      shared_file[i].m--;
+    } else {
+      wakeup(shared_file[i].proc[0]);
+      for (int j = 1; j < NPROC; j++)
+        shared_file[i].proc[j-1] = shared_file[i].proc[j];
+      shared_file[i].last--;
+    }
+  }
+
+  release(&shared_file[i].lock);
+  return 0;
+}
+
+void sleep1(void *chan) {
+  struct proc *p = myproc();
+
+  if(p == 0)
+    panic("sleep");
+
+  acquire(&ptable.lock);
+  
+  p->chan = chan;
+  p->state = SLEEPING;
+
+  sched();
+
+  p->chan = 0;
+
+  release(&ptable.lock);
+}
+
+int cv_wait(void* condvar) {
+  sleep1(condvar);
+  return 0;
+}
+
+int cv_signal(void* condvar) {
+  wakeup(condvar);
+  return 0;
+}
+
+void reader(int i, void* condvar){
+  readers++;
+  cprintf("reader %d init\n",i);
+  if (writers)
+    cv_wait(&condvar);
+  cprintf("reader %d reads one item from buffer\n",i);
+  cprintf("number of active readers: %d\n",readers);
+  readers--;
+  cv_signal(&condvar);
+}
+
+void writer(int i, void* condvar){
+  cprintf("readers: %d\n",readers);
+  cprintf("writer %d init\n",i);
+  if (readers || writers)
+    cv_wait(&condvar);
+  writers++;
+  //test_variable++;
+  //cprintf("test varibale is %d\n",test_variable);
+  cprintf("writer %d writes next item in buffer\n",i);
+  cprintf("number of active writers: %d\n",writers);
+  writers--;
+  cv_signal(&condvar);
+}
+
+
+
+
+
+
+
+
+
+// int sem_acquire(int i){
+//   acquire(&shared_file[i].lk);
+
+//   if(shared_file[i].write_count == 0){
+
+//     if(get_is_writer(current_process_id) != 1){
+//       cprintf("pid %d can read!\n", current_process_id);
+//     }
+
+//     else{
+//       cprintf("pid %d can write!\n", current_process_id);
+//     }
+
+//   }
+
+//   else {
+
+//     if(get_is_writer(current_process_id) != 1){
+//       cprintf("pid %d cannot read!\n", current_process_id);
+//       sleep(myproc()->chan, &shared_file[i].lk);
+//       //myproc()->state = "SLEEPING";
+//     }
+
+//     else{
+//       cprintf("pid %d cannot write!\n", current_process_id);
+//       sleep(myproc()->chan, &shared_file[i].lk);
+//       //myproc()->state = "SLEEPING";
+//     }
+//   }
+
+//   return 0;
+// }
