@@ -607,7 +607,7 @@ struct {
 
 //struct semaphore shared_file[3];
 
-int proc_semaphore_init(int i, int v, int m){
+int proc_semaphore_init(int i, int v, int m) {
   acquire(&shared_file[i].lock);
   shared_file[i].v = v;
   shared_file[i].m = m;
@@ -616,19 +616,17 @@ int proc_semaphore_init(int i, int v, int m){
   return 0;
 }
 
-int proc_semaphore_acquire(int i)
-{
+int proc_semaphore_acquire(int i) {
   acquire(&shared_file[i].lock);
-  if (shared_file[i].m < shared_file[i].v)
-  {
+  if (shared_file[i].m < shared_file[i].v) {
     shared_file[i].m++;
   }
-  else
-  {
+  else {
     shared_file[i].proc[shared_file[i].last] = myproc();
     shared_file[i].last++;
     sleep(myproc(), &shared_file[i].lock);
   }
+
   release(&shared_file[i].lock);
   return 0;
 }
@@ -654,21 +652,16 @@ int proc_semaphore_release(int i){
   return 0;
 }
 
-void sleep1(void *chan) {
+void sleep1(void *chan) {  //make a process sleep untill it is awoken by a signal
   struct proc *p = myproc();
-
   if(p == 0)
     panic("sleep");
 
   acquire(&ptable.lock);
-  
   p->chan = chan;
   p->state = SLEEPING;
-
   sched();
-
   p->chan = 0;
-
   release(&ptable.lock);
 }
 
@@ -677,37 +670,76 @@ int cv_wait(void* condvar) {
   return 0;
 }
 
-int cv_signal(void* condvar) {
+int cv_signal(void* condvar) { //wakes up the process
   wakeup(condvar);
   return 0;
 }
 
 void reader(int i, void* condvar){
   readers++;
-  cprintf("reader %d init\n",i);
-  if (writers)
+  cprintf("writers: %d\n",writers);
+  cprintf("reader number %d was initialized\n",i);
+
+  if (writers)               //if there is a writer, the reader should keep waiting
     cv_wait(&condvar);
-  cprintf("reader %d reads one item from buffer\n",i);
-  cprintf("number of active readers: %d\n",readers);
+
+  cprintf("reader number %d is reading\n",i);
+  cprintf("right now %d readers are eading concurrently\n",readers);
   readers--;
-  cv_signal(&condvar);
+
+  cv_signal(&condvar);     //signalling the condition variable
 }
 
 void writer(int i, void* condvar){
   cprintf("readers: %d\n",readers);
-  cprintf("writer %d init\n",i);
-  if (readers || writers)
-    cv_wait(&condvar);
+  cprintf("writer number %d was initialized\n",i);
+
+  if (readers || writers)        //if there are both readers and writers, the writer should
+    cv_wait(&condvar);           //keep waiting
+
   writers++;
-  //test_variable++;
-  //cprintf("test varibale is %d\n",test_variable);
-  cprintf("writer %d writes next item in buffer\n",i);
-  cprintf("number of active writers: %d\n",writers);
+  
+  cprintf("writer number %d is writing\n",i);
+  cprintf("right now %d writers are writing\n",writers);
   writers--;
+
   cv_signal(&condvar);
 }
 
+// sem_t accessSemaphore;
+// sem_t counterSemaphore;
 
+// void reader(int i) {
+//   sem_wait(&accessSemaphore); // Wait for access to readers and writers
+
+//   sem_wait(&counterSemaphore); // Acquire counter semaphore
+//   readers++;
+//   if (readers == 1) {
+//     sem_wait(&accessSemaphore); // Wait for exclusive access if the first reader
+//   }
+//   sem_post(&counterSemaphore); // Release counter semaphore
+
+//   // Reading
+//   printf("reader number %d is reading\n", i);
+//   printf("right now %d readers are reading concurrently\n", readers);
+
+//   sem_wait(&counterSemaphore); // Acquire counter semaphore
+//   readers--;
+//   if (readers == 0) {
+//     sem_post(&accessSemaphore); // Release exclusive access if the last reader
+//   }
+//   sem_post(&counterSemaphore); // Release counter semaphore
+// }
+
+// void writer(int i) {
+//   sem_wait(&accessSemaphore); // Wait for access to readers and writers
+
+//   // Writing
+//   printf("writer number %d is writing\n", i);
+//   printf("right now %d writers are writing\n", writers);
+
+//   sem_post(&accessSemaphore); // Release access to readers and writers
+// }
 
 
 
